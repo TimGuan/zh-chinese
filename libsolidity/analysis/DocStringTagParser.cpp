@@ -192,14 +192,38 @@ bool DocStringTagParser::visit(InlineAssembly const& _assembly)
 	{
 		if (tagName == "solidity")
 		{
-			if (tagValue.content == "memory-safe-assembly")
-				_assembly.annotation().markedMemorySafe = true;
-			else
+			set<string> values;
+			set<string> duplicates;
+			auto it = tagValue.content.begin();
+			auto end = tagValue.content.end();
+			while (it != end)
+			{
+				while (it != end && isWhiteSpace(*it))
+					++it;
+				auto valueStart = it;
+				while (it != end && !isWhiteSpace(*it))
+					++it;
+				if (valueStart != it)
+					if (!values.emplace(valueStart, it).second)
+						duplicates.emplace(valueStart, it);
+			}
+			for (string const& duplicate: duplicates)
 				m_errorReporter.warning(
-					8787_error,
+					4377_error,
 					_assembly.location(),
-					"Unexpected value for @solidity tag in inline assembly: " + tagValue.content
+					"Value for @solidity tag in inline assembly specified multiple times: " + duplicate
 				);
+
+
+			for (auto const& value: values)
+				if (value == "memory-safe-assembly")
+					_assembly.annotation().markedMemorySafe = true;
+				else
+					m_errorReporter.warning(
+						8787_error,
+						_assembly.location(),
+						"Unexpected value for @solidity tag in inline assembly: " + value
+					);
 		}
 		else
 			m_errorReporter.warning(
