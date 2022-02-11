@@ -287,9 +287,9 @@ state at all times. This is especially relevant for :ref:`the new code generatio
 this code generation path can move local variables from stack to memory to avoid stack-too-deep errors and
 perform additional memory optimizations, if it can rely on certain assumptions about memory use.
 
-While we recommend to always respect Solidity's memory model, it is possible to use memory
-in an incompatible way from inline assembly. Therefore, moving stack variables to memory and additional
-memory optimizations are, by default, disabled in the presence of any inline assembly block.
+While we recommend to always respect Solidity's memory model, inline assembly allows you to use memory
+in an incompatible way. Therefore, moving stack variables to memory and additional memory optimizations are,
+by default, disabled in the presence of any inline assembly block.
 
 However, you can specifically annotate an assembly block to indicate that it in fact respects Solidity's memory
 model as follows:
@@ -301,11 +301,58 @@ model as follows:
         ...
     }
 
-In particular, a memory-safe assembly block has to follow the adhere to the following restriction:
+In particular, a memory-safe assembly block has to adhere to the following restriction:
 All accessed memory (read or written) was properly allocated. This can either be memory allocated by yourself
 using a mechanism like the ``allocate`` function described above, or memory allocated by Solidity,
 e.g. memory within the bounds of a memory array you reference. The only exception to this is the scratch space
 between memory offset 0 and 64 mentioned above.
+
+Since this is mainly about the optimizer, it does not matter that there is no Solidity code following your assembly block.
+As an example, the following assembly snippet is not memory safe:
+
+.. code-block:: solidity
+
+    assembly {
+      returndatacopy(0, returndatasize())
+      revert(0, returndatasize())
+    }
+
+But the following is:
+
+.. code-block:: solidity
+
+    /// @solidity memory-safe-assembly
+    assembly {
+      let p := mload(0x40)
+      returndatacopy(0x40, returndatasize())
+      revert(0x40, returndatasize())
+    }
+
+Note that you do not need to update the free memory pointer if there is no following allocation,
+but you can only use memory starting from the current offset given by the free memory pointer.
+
+If the memory operations use a length of zero, it is also fine to just use any offset (not only if it falls into the scratch space):
+
+.. code-block:: solidity
+
+    /// @solidity memory-safe-assembly
+    assembly {
+      revert(0, 0)
+    }
+
+Note that not only memory operations in inline assembly itself can be memory-unsafe, but also assignments to
+solidity variables of reference type in memory. For example the following is not memory-safe:
+
+.. code-block:: solidity
+
+    bytes memory x;
+    assembly {
+      x := 0x40
+    }
+    x[0x20] = 0x42;
+
+Inline assembly that neither involves any operations that access memory nor assigns to any solidity variables
+in memory is automatically considered memory-safe and does not need to be annotated.
 
 .. warning::
     It is your responsibility to make sure that the assembly actually satisfies the memory model. If you annotate
