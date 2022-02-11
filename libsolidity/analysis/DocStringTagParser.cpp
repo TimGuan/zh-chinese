@@ -178,7 +178,7 @@ bool DocStringTagParser::visit(InlineAssembly const& _assembly)
 			if (error->comment())
 				ssl.append(
 					*error->comment(),
-					error->sourceLocation() ? *error->sourceLocation() : _assembly.location()
+					_assembly.location()
 				);
 		m_errorReporter.warning(
 			7828_error,
