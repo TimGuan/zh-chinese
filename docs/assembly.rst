@@ -289,7 +289,8 @@ perform additional memory optimizations, if it can rely on certain assumptions a
 
 While we recommend to always respect Solidity's memory model, inline assembly allows you to use memory
 in an incompatible way. Therefore, moving stack variables to memory and additional memory optimizations are,
-by default, disabled in the presence of any inline assembly block.
+by default, disabled in the presence of any inline assembly block that contains a memory operation or assigns
+to solidity variables in memory.
 
 However, you can specifically annotate an assembly block to indicate that it in fact respects Solidity's memory
 model as follows:
@@ -301,19 +302,21 @@ model as follows:
         ...
     }
 
-In particular, a memory-safe assembly block has to adhere to the following restriction:
-All accessed memory (read or written) was properly allocated. This can either be memory allocated by yourself
-using a mechanism like the ``allocate`` function described above, or memory allocated by Solidity,
-e.g. memory within the bounds of a memory array you reference. The only exception to this is the scratch space
-between memory offset 0 and 64 mentioned above.
+In particular, a memory-safe assembly block may only access the following memory ranges:
 
-Since this is mainly about the optimizer, it does not matter that there is no Solidity code following your assembly block.
-As an example, the following assembly snippet is not memory safe:
+- Memory allocated by yourself using a mechanism like the ``allocate`` function described above.
+- Memory allocated by Solidity, e.g. memory within the bounds of a memory array you reference.
+- The scratch space between memory offset 0 and 64 mentioned above.
+- Temporary memory that is located *after* the value of the free memory pointer at the beginning of the assembly block,
+  i.e. memory that is "allocated" at the free memory pointer without updating the free memory pointer.
+
+Since this is mainly about the optimizer, these restrictions still need to be followed, even if the assembly block
+reverts or terminates. As an example, the following assembly snippet is not memory safe:
 
 .. code-block:: solidity
 
     assembly {
-      returndatacopy(0, returndatasize())
+      returndatacopy(0, 0, returndatasize())
       revert(0, returndatasize())
     }
 
@@ -324,8 +327,8 @@ But the following is:
     /// @solidity memory-safe-assembly
     assembly {
       let p := mload(0x40)
-      returndatacopy(0x40, returndatasize())
-      revert(0x40, returndatasize())
+      returndatacopy(p, 0, returndatasize())
+      revert(p, returndatasize())
     }
 
 Note that you do not need to update the free memory pointer if there is no following allocation,
