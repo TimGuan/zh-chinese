@@ -348,10 +348,10 @@ bool SyntaxChecker::visit(InlineAssembly const& _inlineAssembly)
 				_inlineAssembly.annotation().markedMemorySafe = true;
 			}
 			else
-				m_errorReporter.syntaxError(
+				m_errorReporter.warning(
 					4430_error,
 					_inlineAssembly.location(),
-					"Unexpected inline assembly flag: \"" + *flag + "\""
+					"Unknown inline assembly flag: \"" + *flag + "\""
 				);
 		}
 
