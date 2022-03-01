@@ -310,6 +310,9 @@ In particular, a memory-safe assembly block may only access the following memory
 - Temporary memory that is located *after* the value of the free memory pointer at the beginning of the assembly block,
   i.e. memory that is "allocated" at the free memory pointer without updating the free memory pointer.
 
+Furthermore, if the assembly block assigns to Solidity variables in memory, you need to assure that accesses to
+the Solidity variables only access these memory ranges.
+
 Since this is mainly about the optimizer, these restrictions still need to be followed, even if the assembly block
 reverts or terminates. As an example, the following assembly snippet is not memory safe:
 
